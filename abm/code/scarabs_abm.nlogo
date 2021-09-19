@@ -82,7 +82,7 @@ balls-own [
 
 to setup
   clear-all
-  py:setup py:python
+  py:setup "C://Users/verst043/Miniconda3/envs/dungbeetles/python" ;; link to conda environment
   py:run "import numpy as np"
   py:run "import math"
   set-default-shape beetles "bug"
@@ -1457,7 +1457,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.1.1
+NetLogo 6.2.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
