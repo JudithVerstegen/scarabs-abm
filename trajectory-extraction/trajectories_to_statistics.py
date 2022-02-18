@@ -1,11 +1,12 @@
 import numpy as np
+import csv
 import os
 import argparse
 import json
 import math
 from scipy.stats import chisquare
 
-# python trajectories_to_statistics.py -input "F:\Dokumente\Uni_Msc\Thesis\repo\scarabs-abm\calibration\trajectories\the" 
+# python trajectories_to_statistics.py -input "..\trajectories" 
 
 
 def calculate_stats(pts, times, scale, displacement_vectors):
@@ -69,7 +70,7 @@ if __name__ == '__main__':
     folder_items = os.listdir(args["input_folder"])
     trajectories = [fi for fi in folder_items if fi.endswith(".json")]
     i = 0
-
+    all_stats = []
     while i < len(trajectories):
         with open(args["input_folder"] + "/" + trajectories[i]) as json_file:
             print('reading file', trajectories[i])
@@ -94,6 +95,10 @@ if __name__ == '__main__':
 
             stats = calculate_stats(trajectory_list, times_list, scale, displacement_vectors)
             print(stats)
-
+        all_stats.append(stats)
         i += 1
 
+    with open('all_stats.csv', 'w') as f:
+        write = csv.writer(f)
+        write.writerow(('total_length', 'time_length', 'average_speed'))
+        write.writerows(all_stats)
