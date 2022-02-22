@@ -4,7 +4,7 @@ import os
 import argparse
 import json
 import math
-from scipy.stats import chisquare
+from scipy.stats import *
 
 # python trajectories_to_statistics.py -input "..\trajectories" 
 
@@ -44,20 +44,29 @@ def calculate_stats(pts, times, scale, displacement_vectors):
 
     # find what heading the beetle chose
     first_headings = headings[:5]
-    default_heading = np.average(first_headings)
+    print(first_headings)
+    default_heading = np.rad2deg(circmean(np.deg2rad(first_headings)))
     print('default heading', default_heading)
 
-    # Calculate deviations
+    # Calculate deviations and make between 0 and 180
     heading_deviations = np.subtract(headings, [default_heading]).astype(int)
+    heading_deviations = np.where(heading_deviations < 0, \
+                                  abs(heading_deviations), heading_deviations)
+    heading_deviations = np.where(heading_deviations > 180, \
+                                  abs(heading_deviations - 360), heading_deviations)
+    median_deviation = np.median(heading_deviations)
+    sd_deviation = np.std(heading_deviations)
+    print('median heading deviation', median_deviation)
+    print('sd heading deviation', sd_deviation)
 
     # same bins as in netlogo
-    bins = np.arange(0, 361, 30)
+    bins = np.arange(0, 181, 20)
     histogram = np.histogram(heading_deviations, bins=bins)
     print('histogram', histogram)
     histogram_stats = chisquare(histogram[0])
     print('histogram stats', histogram_stats)
 
-    return real_total_length, time_length, average_speed
+    return real_total_length, time_length, average_speed, median_deviation, sd_deviation
 
 if __name__ == '__main__':
     # construct the argument parser and parse the arguments
@@ -100,5 +109,5 @@ if __name__ == '__main__':
 
     with open('all_stats.csv', 'w') as f:
         write = csv.writer(f)
-        write.writerow(('total_length', 'time_length', 'average_speed'))
+        write.writerow(('total_length', 'time_length', 'average_speed', 'median heading deviation', 'sd heading deviation'))
         write.writerows(all_stats)
