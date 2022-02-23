@@ -302,7 +302,7 @@ to update-heading-plot
     set-current-plot-pen temp_string
     set-plot-pen-mode 1
     ;set-plot-y-range 0 500
-    set-plot-pen-interval 30
+    set-plot-pen-interval 20
     set-plot-pen-color who
     histogram headings-deviation-list
   ]
@@ -357,10 +357,14 @@ to establish-heading
         ; if there is only one other beetle to run away from
         let new-heading 0
         ask visible-beetles [
-          ifelse heading-degrees > 180 [
-            set new-heading ((heading-degrees - 180) mod 360)] [
-            set new-heading ((heading-degrees + 180) mod 360)]
+          set new-heading heading-degrees - 180
+          if new-heading < 0 [set new-heading new-heading + 360]
         ]
+        ;ask visible-beetles [
+        ;  ifelse heading-degrees > 180 [
+        ;    set new-heading ((heading-degrees - 180) mod 360)] [
+        ;    set new-heading ((heading-degrees + 180) mod 360)]
+        ;]
         let noise random-in-range -20 20
 
         set heading-degrees new-heading + noise ; setting new heading opposite to the existing one
@@ -373,29 +377,34 @@ to establish-heading
           set headings-list lput heading-degrees headings-list  ; append headings
         ]
         let sorted-list sort headings-list  ; sort them for calculations
+        print sorted-list
 
         ; initial values for iteration
         let n 0
-        let difference 0
-        let chosen-headings [0 359]
-        let added-value ((item 0 sorted-list) + 360)
-        set sorted-list lput added-value sorted-list  ; append the first one too, to round it up
+        let difference (subtract-headings (first sorted-list) (last sorted-list))
+        if difference < 0 [set difference difference + 360]
+        let chosen-headings list last sorted-list first sorted-list
+        print difference
 
         ; iterate through the headings to find the larges difference angle between them
         while [ n < (length sorted-list) - 1 ] [
           let m n + 1
-          let new-difference (item m sorted-list - item n sorted-list)
+          let new-difference (item m sorted-list) - (item n sorted-list)
           if new-difference > difference [
             set difference new-difference
             set chosen-headings (list item n sorted-list item m sorted-list)
           ]
           set n n + 1
         ]
+        print difference
 
         let noise random-in-range -20 20
 
-        set heading-degrees int ((((item 1 chosen-headings + item 0 chosen-headings) / 2) + noise) mod 360)
-        set initial-heading heading-degrees
+        ;set heading-degrees int (((item 1 chosen-headings + item 0 chosen-headings) / 2) mod 360)
+        set heading-degrees int (first chosen-headings + (difference / 2))
+          if heading-degrees > 360 [set heading-degrees heading-degrees - 360]
+        print heading-degrees
+        set initial-heading heading-degrees + noise
       ]
     ]
 
@@ -407,7 +416,7 @@ to establish-heading
   ]
 end
 
-to wander  ;; beetle procedure
+to wander ;; beetle procedure
   ; 5 patches buffer around the world
   ifelse (abs xcor) > ((abs max-pxcor) - 5) or (abs xcor) > ((abs min-pxcor) - 5) or (abs ycor) > ((abs max-pycor) - 5) or (abs ycor) > ((abs min-pycor) - 5) [
     ; nest if end of the world
@@ -426,22 +435,21 @@ to wander  ;; beetle procedure
         ; then either turn a bit to the left or to the right (15)
         set encounter-reset-heading encounter-reset-heading + 1
         if (distancexy 0 0) > 50 [
-          let minimum-diff 359
+          let diff 359
           let old-heading heading-degrees
           let other-heading 0
           ask visible-beetles [
-            let new-diff heading-degrees - old-heading
-            if (abs (new-diff)) < minimum-diff [
-              set minimum-diff new-diff
-              set other-heading heading-degrees  ]
+            set diff abs (subtract-headings heading-degrees old-heading)
+            set other-heading heading-degrees
           ]
-          if minimum-diff < 30 and encounter-reset-heading >= 30 [
+          if diff < 30 and encounter-reset-heading >= 30 [
             ifelse other-heading > heading-degrees [
               set heading-degrees heading-degrees - 15
-              set heading-deviation-degrees initial-heading - heading-degrees
+              set heading-deviation-degrees subtract-headings initial-heading heading-degrees
             ] [
               set heading-degrees heading-degrees + 15
-              set heading-deviation-degrees initial-heading - heading-degrees
+              if heading-degrees > 359 [set heading-degrees heading-degrees - 360]
+              set heading-deviation-degrees abs(subtract-headings initial-heading heading-degrees)
             ]
             set encounter-reset-heading 0
           ]
@@ -500,7 +508,7 @@ to wander  ;; beetle procedure
 
           ifelse found-heading = true and secondary-heading != 0 [
             set course-deviation course-deviation + 1
-            set heading-deviation-degrees heading-degrees - secondary-heading
+            set heading-deviation-degrees subtract-headings heading-degrees secondary-heading
 
             ; if the course has deviated too much, must dance too
             ifelse course-deviation > max-deviation [
@@ -582,6 +590,7 @@ to push-ball [#some-heading #deviation-before] ; beetle and ball actually moving
   let heading-adjusted (check-roughness #some-heading)
   set heading-adjusted heading-adjusted + (random-prefix * 100 * this-ball-roughness * ball-roughness-impact)
   let deviation-after heading-adjusted - #some-heading
+  ;print word "deviation after " deviation-after
   set heading heading-adjusted
   ask patch-ahead 1 [
     set step-length step-length - (patch-roughness-impact * roughness)
@@ -622,19 +631,21 @@ end
 to-report find-secondary-heading [#initial-heading]
   let other-heading 0
   let found-heading false
-  foreach [15 30 45 60 75 90 105 130 150 180 200 230 250 280 310]
+  foreach [15 30 45 60 75 90 105 120 135 150 165]
   [
     x ->
       if (found-heading = false) [
         if not obstacle? (#initial-heading - x) [
         set other-heading #initial-heading - x
         set found-heading true
+        ; Immediately exits from the current to-report procedure and reports value
         report other-heading
       ]
       if found-heading = false [
         if not obstacle? (#initial-heading + x) [
           set found-heading true
           set other-heading #initial-heading + x
+          ; Immediately exits from the current to-report procedure and reports value
           report other-heading
         ]
        ]
@@ -643,6 +654,7 @@ to-report find-secondary-heading [#initial-heading]
 
   ]
   if found-heading = false [
+    print "problem"
     report #initial-heading - 180
   ]
 end
@@ -825,7 +837,7 @@ Heading-deviation
 Deviation angle
 Frequency
 0.0
-360.0
+180.0
 0.0
 100.0
 true
@@ -1098,7 +1110,7 @@ beetles-at-pile
 beetles-at-pile
 1
 10
-3.0
+5.0
 1
 1
 NIL
